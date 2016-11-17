@@ -1,4 +1,5 @@
 from random import randint
+import collections
 
 class Gomoku:
 
@@ -108,6 +109,74 @@ class BaselinePolicy:
 					nextMove.append((x, y))
 					break
 		return nextMove[0]
+
+def evaluate(game, player):
+	chessBoard = game.chessBoard
+	chessBoardSize = len(chessBoard)
+	windowSize = 5
+
+	agent, opponent = player, 1 if player == 2 else 2
+	totalCount = collections.defaultdict(int)
+
+	startPos = {'row': [(i, 0) for i in range(chessBoardSize)], \
+				'column': [(0, j) for j in range(chessBoardSize)], \
+				'diagonal': [(i, 0) for i in range(1, chessBoardSize)] + [(0, j) for j in range(chessBoardSize)], \
+				'rdiagonal': [(i, chessBoardSize - 1) for i in range(1, chessBoardSize)] + [(0, j) for j in range(chessBoardSize)]}
+	direction = {'row': (0, 1), 'column': (1, 0), 'diagonal': (1, 1), 'rdiagonal': (1, -1)}
+	diff = {'row': (0, -windowSize), 'column': (-windowSize, 0), 'diagonal': (-windowSize, -windowSize), 'rdiagonal': (-windowSize, windowSize)}
+	
+	def validPos(i, j):
+		return (i >= 0 and i < chessBoardSize) and (j >= 0 and j < chessBoardSize)
+
+	for d in direction:
+		for (i, j) in startPos[d]:
+			initial = 0
+			windowCount = {'agent': 0, 'opponent': 0}
+			while validPos(i, j):
+				if initial < windowSize - 1:
+					if chessBoard[i][j] == agent:
+						windowCount['agent'] += 1
+					elif chessBoard[i][j] == opponent:
+						windowCount['opponent'] += 1
+					initial += 1
+					i += direction[d][0]
+					j += direction[d][1]
+					continue
+
+				if (chessBoard[i][j] == agent):
+					windowCount['agent'] += 1
+				elif (chessBoard[i][j] == opponent):
+					windowCount['opponent'] += 1
+
+				previ, prevj = i + diff[d][0], j + diff[d][1]
+
+				if validPos(previ, prevj):
+					prevLoc = chessBoard[previ][prevj]
+					if (prevLoc == agent):
+						windowCount['agent'] -= 1
+					elif (prevLoc == opponent):
+						windowCount['opponent'] -= 1
+
+				if windowCount['agent'] == windowSize:
+					return float("inf")
+				elif (windowCount['opponent'] <= 0 and windowCount['agent'] > 0):
+					totalCount[windowCount['agent']] += 1
+
+				i += direction[d][0]
+				j += direction[d][1]
+				
+	value = 0
+	for key in totalCount:
+		value += key*totalCount[key]
+	return value
+
+
+
+
+
+
+	
+
 
 
 
