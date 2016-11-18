@@ -23,3 +23,20 @@ def SanityCheckEvaluationFunction():
 	print "pass test for evaluation function"
 
 SanityCheckEvaluationFunction()
+
+def SanityCheckRevertFunction():
+	chessBoardSize = 4
+	newGame = game.Gomoku(chessBoardSize)
+	actions = [(0,2), (1,3), (2,0), (1,1)]
+	for a in actions:
+		newGame.updateBoard(a)
+		util.prettyPrint(newGame.chessBoard)
+		print '----------------------------------------------------------------------'
+	actions = actions[::-1]
+	actions.append((-1,-1))
+	for i in range(1, len(actions)):
+		newGame.revert(actions[i])
+		util.prettyPrint(newGame.chessBoard)
+		print '----------------------------------------------------------------------'
+
+SanityCheckRevertFunction()

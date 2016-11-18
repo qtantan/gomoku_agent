@@ -1,9 +1,11 @@
 import game
+import util
+import time
 
-iteration = 10
+iteration = 5
 numberWin = [0, 0]
 numSteps = [[0 for i in range(iteration)] for i in range(0, 2)]
-boardSize = 15
+boardSize = 10
 
 for i in range(0, iteration):
 	newGame = game.Gomoku(boardSize)
@@ -11,12 +13,18 @@ for i in range(0, iteration):
 
 	baselinePolicy = game.BaselinePolicy()
 	randomPolicy = game.RandomPolicy()
+	minimaxPolicy = game.MinimaxPolicy()
+	time_to_move = [[], []]
 	while (newGame.isEnd() < 0):
 		nextPlayer = newGame.nextPlayer
+		start = time.time()
 		if (nextPlayer == 1):
-			action = baselinePolicy.getNextAction(newGame)
+			# action = baselinePolicy.getNextAction(newGame)			
+			action = minimaxPolicy.getNextAction(newGame)
 		else:
-			action = randomPolicy.getNextAction(newGame)
+			# action = randomPolicy.getNextAction(newGame)
+			action = baselinePolicy.getNextAction(newGame)
+		time_to_move[nextPlayer - 1].append(time.time() - start)
 		# print "player %d places on (%d, %d)"%(nextPlayer, action[0], action[1])
 		newGame.updateBoard(action)
 	losePlayer, totalStep0, totalStep1 = newGame.currentGame()
@@ -25,8 +33,13 @@ for i in range(0, iteration):
 	if newGame.isEnd() != 0:
 		numberWin[winPlayer-1] += 1
 		numSteps[winPlayer-1][i] = totalStep[winPlayer-1]
-print "player 1 wins %d times, the average number of steps to win is %f"%(numberWin[0], 1.0*sum(numSteps[0])/numberWin[0])
-print "player 2 wins %d times, the average number of steps to win is %f"%(numberWin[1], 1.0*sum(numSteps[1])/numberWin[1])
+	print '#### player %d wins' %winPlayer
+	util.prettyPrint(newGame.chessBoard)
+
+print "player 1 wins %d times, the average number of steps to win is %f, the average time to think is %f "%(numberWin[0], \
+	1.0*sum(numSteps[0])/numberWin[0] if numberWin[0] != 0 else float('inf'), sum(time_to_move[0]) / len(time_to_move[0]))
+print "player 2 wins %d times, the average number of steps to win is %f, the average time to think is %f "%(numberWin[1], \
+	1.0*sum(numSteps[1])/numberWin[1] if numberWin[1] != 0 else float('inf'), sum(time_to_move[1]) / len(time_to_move[1]))
 
 	# if newGame.isEnd() == 0:
 	# 	print "break even!"

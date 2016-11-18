@@ -1,6 +1,8 @@
 from random import randint
 import collections
 
+const_agentId = 1
+
 class Gomoku:
 
 	def __init__(self, N):
@@ -23,6 +25,17 @@ class Gomoku:
 		self.totalSteps[self.nextPlayer - 1] += 1
 		self.lastMove = pos
 		self.nextPlayer = 2 if self.nextPlayer == 1 else 1
+
+	# revert last move given updated last postion
+	def revert(self, lastPos):
+		assert( (lastPos[0] == -1 and lastPos[0] == -1 and sum(self.totalSteps) == 1) or \
+			(lastPos[0] >= 0 and lastPos[0] < self.chessSize and lastPos[1] >= 0 and lastPos[1] < self.chessSize))
+		assert(lastPos == (-1,-1) or self.chessBoard[lastPos[0]][lastPos[1]] == self.nextPlayer)
+		assert(self.totalSteps[2 - self.nextPlayer] > 0)
+		self.totalSteps[2 - self.nextPlayer] -= 1
+		self.chessBoard[self.lastMove[0]][self.lastMove[1]] = 0
+		self.nextPlayer = 3 - self.nextPlayer
+		self.lastMove = lastPos
 
 	# check if the game ends
 	# return if a game terminates
@@ -171,7 +184,64 @@ def evaluate(game, player):
 	return value
 
 
+class MinimaxPolicy:
 
+	def __init__(self, evalFunc = evaluate, depth = 1, pruning = False):
+		self.depth = depth
+		self.pruning = pruning
+		self.evalFunc = evalFunc
+
+	def getNextAction(self, game):
+
+		def recurseAlphaBeta(d, lowerBound, upperBound):
+			winner = game.isEnd()
+			if winner == const_agentId:
+				return (float('inf'), None)
+			elif winner >= 0:
+				return (float('-inf'), None)
+			if d == self.depth:
+				return (self.evalFunc(game, game.nextPlayer), None)
+
+			chessBoard = game.chessBoard
+			lastMove = game.lastMove
+			player = game.nextPlayer
+
+			nextd = d + 1 if player == 2 else d
+			choices = []
+			for i in range(len(chessBoard)):
+				for j in range(len(chessBoard)):
+					if chessBoard[i][j] == 0:
+						game.updateBoard((i, j))
+						if self.pruning:
+							choices.append((self.evalFunc(game, player), (i, j)))
+						else:
+							choices.append((0, (i, j)))
+						game.revert(lastMove)
+			if self.pruning:
+				choices.sort()
+				if player == const_agentId:
+					choices = choices[::-1]
+
+			maxPair = (float('-inf'), None)
+			minPair = (float('inf'), None)
+			for _, a in choices:
+				game.updateBoard(a)
+				if player == const_agentId:
+					v, _ = recurseAlphaBeta(nextd, maxPair[0], upperBound)
+				else:
+					v, _ = recurseAlphaBeta(nextd, lowerBound, minPair[0])
+				maxPair = max(maxPair, (v, a))
+				minPair = min(minPair, (v, a))
+				game.revert(lastMove)
+				if self.pruning and player == const_agentId and maxPair[0] > upperBound:
+					return maxPair
+				elif self.pruning and player != const_agentId and minPair[0] < lowerBound:
+					return minPair
+
+			return maxPair if player == const_agentId else minPair
+
+		value, action = recurseAlphaBeta(0, float('-inf'), float('inf'))
+		return action
 
 
 
