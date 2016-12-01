@@ -43,7 +43,7 @@ class Gomoku:
 		# 0 - break even
 		# 1 - player 1 wins
 		# 2 - player 2 wins
-	def isEnd(self): 
+	def isEnd(self, debug = False): 
 
 		# helper function to return state of a position
 		def boardState(pos): # pos = (coor x, coor y)
@@ -66,9 +66,10 @@ class Gomoku:
 				count[d] += 1
 				i += direction[d][0]
 				j += direction[d][1]
-		# print count
+		if debug:
+			print count
 		if (count['N'] + count['S'] >= 6) or (count['W'] + count['E'] >= 6) \
-			or (count['NE'] + count['SW'] >= 6) or (count['NW'] + count['NE'] >= 6):
+			or (count['NE'] + count['SW'] >= 6) or (count['NW'] + count['SE'] >= 6):
 			return lastPlayer
 		else:
 			return -1
@@ -186,7 +187,7 @@ def evaluate(game, player):
 
 class MinimaxPolicy:
 
-	def __init__(self, evalFunc = evaluate, depth = 1, pruning = False):
+	def __init__(self, evalFunc = evaluate, depth = 1, pruning = True):
 		self.depth = depth
 		self.pruning = pruning
 		self.evalFunc = evalFunc

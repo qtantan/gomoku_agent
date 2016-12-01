@@ -22,7 +22,7 @@ def SanityCheckEvaluationFunction():
 	assert(value == 17) # window count = {1: 6, 2: 2, 3: 1, 4: 1}
 	print "pass test for evaluation function"
 
-SanityCheckEvaluationFunction()
+# SanityCheckEvaluationFunction()
 
 def SanityCheckRevertFunction():
 	chessBoardSize = 4
@@ -39,4 +39,36 @@ def SanityCheckRevertFunction():
 		util.prettyPrint(newGame.chessBoard)
 		print '----------------------------------------------------------------------'
 
-SanityCheckRevertFunction()
+# SanityCheckRevertFunction()
+
+def SanityCheckIsEnd():
+	chessBoardSize = 7
+	newGame = game.Gomoku(chessBoardSize)
+	newGame.updateBoard((3, 3))
+	newGame.updateBoard((1, 4))
+	newGame.updateBoard((2, 2))
+	newGame.updateBoard((1, 1))
+	newGame.updateBoard((4, 0))
+	newGame.updateBoard((5, 0))
+	newGame.updateBoard((4, 5))
+	newGame.updateBoard((2, 5))
+	newGame.updateBoard((4, 2))
+	newGame.updateBoard((5, 2))
+	newGame.updateBoard((4, 3))
+	newGame.updateBoard((3, 2))
+	newGame.updateBoard((2, 3))
+	newGame.updateBoard((1, 3))
+	newGame.updateBoard((0, 1))
+	newGame.updateBoard((5, 3))
+	newGame.updateBoard((2, 4))
+	newGame.updateBoard((2, 1))
+	newGame.updateBoard((5, 1))
+	assert(newGame.isEnd() == -1)
+
+SanityCheckIsEnd()
+
+
+
+
+
+
