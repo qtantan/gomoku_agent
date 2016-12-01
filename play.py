@@ -33,7 +33,7 @@ for i in range(0, iteration):
 	losePlayer, totalStep0, totalStep1 = newGame.currentGame()
 	winPlayer = 2 if losePlayer == 1 else 1
 	totalStep = (totalStep0, totalStep1)
-	if newGame.isEnd(True) != 0:
+	if newGame.isEnd() != 0:
 		numberWin[winPlayer-1] += 1
 		numSteps[winPlayer-1][i] = totalStep[winPlayer-1]
 		print '#### player %d wins' %winPlayer, 'last move: ', newGame.lastMove
