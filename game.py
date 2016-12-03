@@ -1,5 +1,6 @@
 from random import randint
 import collections
+import util
 
 const_agentId = 1
 
@@ -14,6 +15,9 @@ class Gomoku:
 		self.nextPlayer = 1
 		self.lastMove 	= (-1, -1)
 		self.totalSteps = [0, 0] # (player 1, player 2)
+		self.winningCount = [[0 for i in range(0, 6)] for j in range(0, 2)] #[[player 1 count], [player 2 count]]
+		self.winningCount[0][0] = self.winningCount[1][0] = N*N
+		self.prevWinningCount = []
 
 	def currentGame(self): # return the next player, total steps for player 1 and 2 respectively
 		return (self.nextPlayer, self.totalSteps[0], self.totalSteps[1])
@@ -21,9 +25,16 @@ class Gomoku:
 	# update chess board given a move
 	def updateBoard(self, pos):
 		assert(pos[0] >= 0 and pos[0] < self.chessSize and pos[1] >= 0 and pos[1] < self.chessSize)
-		self.chessBoard[pos[0]][pos[1]] = self.nextPlayer
 		self.totalSteps[self.nextPlayer - 1] += 1
 		self.lastMove = pos
+
+		self.prevWinningCount.append(self.winningCount)
+		newWinningCount = updateFeature(self, pos)
+		if self.nextPlayer == 1:
+			self.winningCount = [newWinningCount['agent'], newWinningCount['opponent']]
+		else:
+			self.winningCount = [newWinningCount['opponent'], newWinningCount['agent']]
+		self.chessBoard[pos[0]][pos[1]] = self.nextPlayer
 		self.nextPlayer = 2 if self.nextPlayer == 1 else 1
 
 	# revert last move given updated last postion
@@ -36,6 +47,11 @@ class Gomoku:
 		self.chessBoard[self.lastMove[0]][self.lastMove[1]] = 0
 		self.nextPlayer = 3 - self.nextPlayer
 		self.lastMove = lastPos
+
+		assert(len(self.prevWinningCount) > 0)
+		self.winningCount = self.prevWinningCount[-1]
+		self.prevWinningCount.pop()
+
 
 	# check if the game ends
 	# return if a game terminates
@@ -124,64 +140,78 @@ class BaselinePolicy:
 					break
 		return nextMove[0]
 
-def evaluate(game, player):
+def updateFeature(game, nextMove):
 	chessBoard = game.chessBoard
 	chessBoardSize = len(chessBoard)
 	windowSize = 5
 
-	agent, opponent = player, 1 if player == 2 else 2
-	totalCount = collections.defaultdict(int)
+	agent = game.nextPlayer
+	opponent = 1 if agent == 2 else 2
 
-	startPos = {'row': [(i, 0) for i in range(chessBoardSize)], \
-				'column': [(0, j) for j in range(chessBoardSize)], \
-				'diagonal': [(i, 0) for i in range(1, chessBoardSize)] + [(0, j) for j in range(chessBoardSize)], \
-				'rdiagonal': [(i, chessBoardSize - 1) for i in range(1, chessBoardSize)] + [(0, j) for j in range(chessBoardSize)]}
+	agentCount = [game.winningCount[agent - 1][i] for i in range(0, 6)]
+	opponentCount = [game.winningCount[opponent - 1][i] for i in range(0, 6)]
+	
+	nextMove_i, nextMove_j = nextMove[0], nextMove[1]
+	startPos = {'row': [(nextMove_i, nextMove_j - delta) for delta in range(0, 5) if nextMove_j - delta >= 0][-1], \
+				'column': [(nextMove_i - delta, nextMove_j) for delta in range(0, 5) if nextMove_i - delta >= 0][-1], \
+				'diagonal': [(nextMove_i - delta, nextMove_j - delta) for delta in range(0, 5) if (nextMove_i - delta >= 0) and (nextMove_j - delta >= 0)][-1], \
+				'rdiagonal': [(nextMove_i - delta, nextMove_j + delta) for delta in range(0, 5) if (nextMove_i - delta >= 0) and (nextMove_j + delta < chessBoardSize)][-1]
+				}
+
 	direction = {'row': (0, 1), 'column': (1, 0), 'diagonal': (1, 1), 'rdiagonal': (1, -1)}
 	diff = {'row': (0, -windowSize), 'column': (-windowSize, 0), 'diagonal': (-windowSize, -windowSize), 'rdiagonal': (-windowSize, windowSize)}
-	
+
 	def validPos(i, j):
-		return (i >= 0 and i < chessBoardSize) and (j >= 0 and j < chessBoardSize)
+		return (i >= 0 and i < chessBoardSize) and (j >= 0 and j < chessBoardSize) \
+				and (i >= nextMove_i - 4 and i <= nextMove_i + 4) and (j >= nextMove_j - 4 and j <= nextMove_j + 4) 
 
 	for d in direction:
-		for (i, j) in startPos[d]:
-			initial = 0
-			windowCount = {'agent': 0, 'opponent': 0}
-			while validPos(i, j):
-				if initial < windowSize - 1:
-					if chessBoard[i][j] == agent:
-						windowCount['agent'] += 1
-					elif chessBoard[i][j] == opponent:
-						windowCount['opponent'] += 1
-					initial += 1
-					i += direction[d][0]
-					j += direction[d][1]
-					continue
-
-				if (chessBoard[i][j] == agent):
+		(i, j) = startPos[d]
+		initial = 0
+		windowCount = {'agent': 0, 'opponent': 0}
+		while validPos(i, j):
+			if initial < windowSize - 1:
+				if chessBoard[i][j] == agent:
 					windowCount['agent'] += 1
-				elif (chessBoard[i][j] == opponent):
+				elif chessBoard[i][j] == opponent:
 					windowCount['opponent'] += 1
-
-				previ, prevj = i + diff[d][0], j + diff[d][1]
-
-				if validPos(previ, prevj):
-					prevLoc = chessBoard[previ][prevj]
-					if (prevLoc == agent):
-						windowCount['agent'] -= 1
-					elif (prevLoc == opponent):
-						windowCount['opponent'] -= 1
-
-				if windowCount['agent'] == windowSize:
-					return float("inf")
-				elif (windowCount['opponent'] <= 0 and windowCount['agent'] > 0):
-					totalCount[windowCount['agent']] += 1
-
+				initial += 1
 				i += direction[d][0]
 				j += direction[d][1]
-				
+				continue
+
+			if (chessBoard[i][j] == agent):
+				windowCount['agent'] += 1
+			elif (chessBoard[i][j] == opponent):
+				windowCount['opponent'] += 1
+
+			previ, prevj = i + diff[d][0], j + diff[d][1]
+
+			if validPos(previ, prevj):
+				prevLoc = chessBoard[previ][prevj]
+				if (prevLoc == agent):
+					windowCount['agent'] -= 1
+				elif (prevLoc == opponent):
+					windowCount['opponent'] -= 1
+
+			if (windowCount['opponent'] <= 0):
+				agentCount[windowCount['agent']] -= 1
+				agentCount[windowCount['agent'] + 1] += 1
+			if (windowCount['agent'] <= 0):
+				opponentCount[windowCount['opponent']] -= 1
+
+			i += direction[d][0]
+			j += direction[d][1]
+
+	return {'agent': agentCount, 'opponent': opponentCount}
+
+def evaluate(game, player):
+
+	agentCount = game.winningCount[player - 1]
+
 	value = 0
-	for key in totalCount:
-		value += key*totalCount[key]
+	for i in range(len(agentCount)):
+		value += i*agentCount[i]
 	return value
 
 
@@ -212,7 +242,7 @@ class MinimaxPolicy:
 			for i in range(len(chessBoard)):
 				for j in range(len(chessBoard)):
 					if chessBoard[i][j] == 0:
-						game.updateBoard((i, j))
+						game.updateBoard((i,j))
 						if self.pruning:
 							choices.append((self.evalFunc(game, player), (i, j)))
 						else:
@@ -244,6 +274,60 @@ class MinimaxPolicy:
 		value, action = recurseAlphaBeta(0, float('-inf'), float('inf'))
 		return action
 
+
+	# chessBoard = game.chessBoard
+	# chessBoardSize = len(chessBoard)
+	# windowSize = 5
+
+	# agent, opponent = player, 1 if player == 2 else 2
+	# totalCount = collections.defaultdict(int)
+
+	# startPos = {'row': [(i, 0) for i in range(chessBoardSize)], \
+	# 			'column': [(0, j) for j in range(chessBoardSize)], \
+	# 			'diagonal': [(i, 0) for i in range(1, chessBoardSize)] + [(0, j) for j in range(chessBoardSize)], \
+	# 			'rdiagonal': [(i, chessBoardSize - 1) for i in range(1, chessBoardSize)] + [(0, j) for j in range(chessBoardSize)]}
+	# direction = {'row': (0, 1), 'column': (1, 0), 'diagonal': (1, 1), 'rdiagonal': (1, -1)}
+	# diff = {'row': (0, -windowSize), 'column': (-windowSize, 0), 'diagonal': (-windowSize, -windowSize), 'rdiagonal': (-windowSize, windowSize)}
+	
+	# def validPos(i, j):
+	# 	return (i >= 0 and i < chessBoardSize) and (j >= 0 and j < chessBoardSize)
+
+	# for d in direction:
+	# 	for (i, j) in startPos[d]:
+	# 		initial = 0
+	# 		windowCount = {'agent': 0, 'opponent': 0}
+	# 		while validPos(i, j):
+	# 			if initial < windowSize - 1:
+	# 				if chessBoard[i][j] == agent:
+	# 					windowCount['agent'] += 1
+	# 				elif chessBoard[i][j] == opponent:
+	# 					windowCount['opponent'] += 1
+	# 				initial += 1
+	# 				i += direction[d][0]
+	# 				j += direction[d][1]
+	# 				continue
+
+	# 			if (chessBoard[i][j] == agent):
+	# 				windowCount['agent'] += 1
+	# 			elif (chessBoard[i][j] == opponent):
+	# 				windowCount['opponent'] += 1
+
+	# 			previ, prevj = i + diff[d][0], j + diff[d][1]
+
+	# 			if validPos(previ, prevj):
+	# 				prevLoc = chessBoard[previ][prevj]
+	# 				if (prevLoc == agent):
+	# 					windowCount['agent'] -= 1
+	# 				elif (prevLoc == opponent):
+	# 					windowCount['opponent'] -= 1
+
+	# 			if windowCount['agent'] == windowSize:
+	# 				return float("inf")
+	# 			elif (windowCount['opponent'] <= 0 and windowCount['agent'] > 0):
+	# 				totalCount[windowCount['agent']] += 1
+
+	# 			i += direction[d][0]
+	# 			j += direction[d][1]
 
 
 	

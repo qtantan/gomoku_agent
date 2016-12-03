@@ -8,21 +8,17 @@ def SanityCheckEvaluationFunction():
 	chessBoardSize = 6
 	print "create a new chess board: "
 	newGame = game.Gomoku(chessBoardSize)
-	newGame.updateBoard((1,2)) # agent
-	newGame.updateBoard((3,1)) # opp
-	newGame.updateBoard((2,2)) # agent
-	newGame.updateBoard((4,1)) # opp
-	newGame.updateBoard((4,2)) # agent
-	newGame.updateBoard((5,1)) # opp
-	newGame.updateBoard((5,2)) # agent
-	newGame.updateBoard((3,4)) # opp
-	newGame.updateBoard((3,3)) # agent
-	util.prettyPrint(newGame.chessBoard)
+
+	moves = [(1,2), (3,1), (2,2), (4,1), (4,2), (5,1), (5,2), (3,4), (3,3)]
+	for m in moves:
+		newGame.updateBoard(m)
+		# print "action: ", m, "winningCount = ", newGame.winningCount
 	value = game.evaluate(newGame, 1)
+	util.prettyPrint(newGame.chessBoard)
 	assert(value == 17) # window count = {1: 6, 2: 2, 3: 1, 4: 1}
 	print "pass test for evaluation function"
 
-# SanityCheckEvaluationFunction()
+SanityCheckEvaluationFunction()
 
 def SanityCheckRevertFunction():
 	chessBoardSize = 4
@@ -39,7 +35,7 @@ def SanityCheckRevertFunction():
 		util.prettyPrint(newGame.chessBoard)
 		print '----------------------------------------------------------------------'
 
-# SanityCheckRevertFunction()
+SanityCheckRevertFunction()
 
 def SanityCheckIsEnd():
 	chessBoardSize = 7
