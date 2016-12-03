@@ -3,6 +3,7 @@ import collections
 import util
 
 const_agentId = 1
+const_oppoId = 2
 
 class Gomoku:
 
@@ -205,14 +206,11 @@ def updateFeature(game, nextMove):
 
 	return {'agent': agentCount, 'opponent': opponentCount}
 
-def evaluate(game, player):
+def evaluate(game, weights = collections.defaultdict(int, {1:1,2:2,3:3,4:4,5:5})):
+	agentCount = game.winningCount[const_agentId - 1]
+	oppoCount = game.winningCount[const_oppoId - 1]
 
-	agentCount = game.winningCount[player - 1]
-
-	value = 0
-	for i in range(len(agentCount)):
-		value += i*agentCount[i]
-	return value
+	return sum([ weights[key] * agentCount[key] - weights[key] * oppoCount[key] for key in range(len(agentCount))])
 
 
 class MinimaxPolicy:
@@ -222,7 +220,7 @@ class MinimaxPolicy:
 		self.pruning = pruning
 		self.evalFunc = evalFunc
 
-	def getNextAction(self, game):
+	def getNextAction(self, game, weights = None):
 
 		def recurseAlphaBeta(d, lowerBound, upperBound):
 			winner = game.isEnd()
@@ -231,7 +229,10 @@ class MinimaxPolicy:
 			elif winner >= 0:
 				return (float('-inf'), None)
 			if d == self.depth:
-				return (self.evalFunc(game, game.nextPlayer), None)
+				if weights is None:
+					return (self.evalFunc(game), None)
+				else:
+					return (self.evalFunc(game, weights), None)
 
 			chessBoard = game.chessBoard
 			lastMove = game.lastMove
@@ -244,7 +245,10 @@ class MinimaxPolicy:
 					if chessBoard[i][j] == 0:
 						game.updateBoard((i,j))
 						if self.pruning:
-							choices.append((self.evalFunc(game, player), (i, j)))
+							if weights is None:
+								choices.append((self.evalFunc(game), (i, j)))
+							else:
+								choices.append((self.evalFunc(game, weights), (i, j)))
 						else:
 							choices.append((0, (i, j)))
 						game.revert(lastMove)
@@ -274,6 +278,53 @@ class MinimaxPolicy:
 		value, action = recurseAlphaBeta(0, float('-inf'), float('inf'))
 		return action
 
+class TDlearner:
+	def __init__(self, boardSize = 7, eta = 0.01, gamma = 0.9):
+		self.boardSize = boardSize
+		self.eta = eta
+		self.gamma = gamma
+
+	def learning(self, numTrails = 50, weights = collections.defaultdict(int, {1:1,2:2,3:3,4:4,5:5})):
+		agentPolicy = MinimaxPolicy()
+		oppoPolicy = BaselinePolicy()
+
+		for t in range(numTrails):
+			newGame = Gomoku(self.boardSize)
+			phi2 = newGame.winningCount[const_agentId - 1] + newGame.winningCount[const_agentId]
+			Vs2 = 0
+			reward = 0
+			while True:
+				nextPlayer = newGame.nextPlayer
+				Vs1, phi1 = Vs2, phi2
+				if nextPlayer == const_agentId:
+					action = agentPolicy.getNextAction(newGame, weights)
+				else:
+					action = oppoPolicy.getNextAction(newGame)
+				
+				newGame.updateBoard(action)
+				phi2 = newGame.winningCount[const_agentId - 1] + newGame.winningCount[const_agentId]
+				Vs2 = evaluate(newGame, weights)
+
+				if newGame.isEnd() >= 0:
+					losePlayer, _, _ = newGame.currentGame()
+					if losePlayer == const_agentId:
+						reward = -30
+					else:
+						reward = 30
+
+				for key in weights:
+					weights[key] = weights[key] - self.eta * (Vs1 - reward - self.gamma * Vs2) * phi1[key] / (t + 1)
+				if newGame.isEnd() >= 0:
+					break
+			
+			losePlayer, totalStep0, totalStep1 = newGame.currentGame()
+			winPlayer = 2 if losePlayer == 1 else 1
+			totalStep = (totalStep0, totalStep1)
+			if newGame.isEnd() != 0:
+				print '>>> player %d wins with steps %d' %(winPlayer, totalStep0)
+			else:
+				print '>>> break even!'
+			print 'current weights', dict(weights)
 
 	# chessBoard = game.chessBoard
 	# chessBoardSize = len(chessBoard)
